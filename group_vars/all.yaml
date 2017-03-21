@@ -1,7 +1,4 @@
 ---
-operators:
-  - operator
-
 controllers:
   - controller01
   - controller02
