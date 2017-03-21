@@ -103,16 +103,11 @@
       wait: True
     with_items: "{{kolla_nodes.results}}"
 
-  - name: Add the controller to the inventory
-    add_host:
-      name: "{{kolla_operator.server.public_v4}}"
-      groups: operator,all
-      ansible_user: "{{ansible_user}}"
-      instance_name: "{kolla_operator.server.name}}"
-      ansible_ssh_private_key_file: "{{key}}"
-      ansible_ssh_common_args: -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no
+  - name: Refresh node facts after floating IP attach
+    os_server_facts:
+      server: '*'
 
-  - name: Add controllers and node to the inventory
+  - name: Add all nodes to the inventory
     add_host:
       name: "{{item.server.public_v4}}"
       groups: all
@@ -121,8 +116,17 @@
       ansible_ssh_private_key_file: "{{key}}"
       ansible_ssh_common_args: -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no
     with_items:
-      - "{{kolla_controllers.results}}"
       - "{{kolla_nodes.results}}"
+      - "{{kolla_controllers.results}}"
+
+  - name: Add operator node to the inventory
+    add_host:
+      name: "{{kolla_operator.server.public_v4}}"
+      groups: operator,all
+      ansible_user: "{{ansible_user}}"
+      instance_name: "{{kolla_operator.server.name}}"
+      ansible_ssh_private_key_file: "{{key}}"
+      ansible_ssh_common_args: -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no
 
 - name: Configure nodes
   hosts: all
@@ -187,3 +191,12 @@
         src: /usr/local/share/kolla/ansible/inventory/multinode
         dest: /root/multinode
         remote_src: True
+
+    - name: Setup /etc/hosts
+      lineinfile:
+        path: /etc/hosts
+        regexp: '.*{{ item }}$'
+        line: "{{ hostvars[item].ansible_default_ipv4.address }} {{item}}"
+        state: present
+      when: hostvars[item].ansible_default_ipv4.address is defined
+      with_items: groups['all']
