@@ -1,0 +1,32 @@
+---
+operators:
+  - operator
+
+controllers:
+  - controller01
+  - controller02
+  - controller03
+
+nodes:
+  - node01
+  - node02
+
+secgroups:
+  - default
+
+image: Ubuntu-16.04
+flavor: gp1.warpspeed
+key_name: prod_iad2
+key: ~/.ssh/{{key_name}}.pem 
+public_network: public
+ansible_user: ubuntu
+
+# The network to which the build nodes should be connected.
+# It will be created
+internal_network: kolla-internal-network
+external_network: kolla-neutron-external-network
+
+# Kolla branch
+kolla_version: stable/newton
+# VIP used by HAProxy, this has to be a unused ip on the internal_network
+internal_vip_address: "192.168.0.100"

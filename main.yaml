@@ -1,0 +1,164 @@
+---
+- name: Build the Kolla cluster
+  hosts: localhost
+  tasks:
+
+  - name: Create a port with a static VIP
+    os_port:
+      state: present
+      name: vip
+      network: "{{internal_network}}"
+      fixed_ips:
+        - ip_address: "{{internal_vip_address}}"
+
+  - name: Make VIP ip accessible on all the controllers
+    os_port:
+      state: present
+      key: "{{key}}"
+      network: "{{internal_network}}"
+      name: "{{item}}"
+      allowed_address_pairs:
+        - ip_address: "{{internal_vip_address}}"
+    with_items: "{{ controllers }}"
+
+#  - name: Assign a floating IP to VIP port
+#    command: "openstack floating ip create --port vip {{public_network}}"
+#    ignore_errors: yes
+
+  - name: Boot the operator node
+    os_server:
+      name: operator
+      state: present
+      image: "{{image}}"
+      security_groups: "{{secgroups}}"
+      flavor: gp1.supersonic
+      key_name: "{{key_name}}"
+      network: "{{internal_network}}"
+      wait: yes
+    register: kolla_operator
+
+  - name: Boot the controllers node
+    os_server:
+      name: "{{item}}"
+      state: present
+      image: "{{image}}"
+      security_groups: "{{secgroups}}"
+      flavor: "{{flavor}}"
+      nics:
+        - port-name: "{{item}}"
+      wait: yes
+    register: kolla_controllers
+    with_items: "{{ controllers }}"
+
+  - name: Boot the compute/network nodes
+    os_server:
+      name: "{{item}}"
+      state: present
+      image: "{{image}}"
+      security_groups: "{{secgroups}}"
+      flavor: "{{flavor}}"
+      nics:
+        - net-name: "{{internal_network}}"
+        - net-name: "{{external_network}}"
+      wait: yes
+      auto_ip: no
+    register: kolla_nodes
+    with_items: "{{nodes}}"
+
+  - name: Attach floating ips for the nodes on the internal network
+    os_floating_ip:
+      state: present
+      reuse: yes
+      server: "{{item.server.name}}"
+      fixed_address: "{{item['openstack']['networks'][internal_network][0]}}"
+      network: "{{public_network}}"
+      wait: True
+    with_items: "{{kolla_nodes.results}}"
+
+  - name: Add the controller to the inventory
+    add_host:
+      name: "{{kolla_operator.server.public_v4}}"
+      groups: operator,all
+      ansible_user: "{{ansible_user}}"
+      instance_name: "{kolla_operator.server.name}}"
+      ansible_ssh_private_key_file: "{{key}}"
+      ansible_ssh_common_args: -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no
+
+  - name: Add controllers and node to the inventory
+    add_host:
+      name: "{{item.server.public_v4}}"
+      groups: all
+      ansible_user: "{{ansible_user}}"
+      instance_name: "{{item.server.name}}"
+      ansible_ssh_private_key_file: "{{key}}"
+      ansible_ssh_common_args: -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no
+    with_items:
+      - "{{kolla_controllers.results}}"
+      - "{{kolla_nodes.results}}"
+
+- name: Configure nodes
+  hosts: all
+  become: yes
+  become_method: sudo
+  gather_facts: False
+
+  tasks:
+    - name: Wait for SSH banners
+      local_action: wait_for port=22 host="{{inventory_hostname}}" search_regex=OpenSSH delay=5
+
+    - name: install python 2
+      raw: test -e /usr/bin/python || (apt -y update && apt install -y python-minimal)
+
+    - name: Copy the public key on all the nodes for the root user
+      copy:
+        src: "/home/{{ansible_user}}/.ssh/authorized_keys"
+        dest: /root/.ssh
+        remote_src: True
+                
+- name: Configure the operator node
+  hosts: operator
+  become: yes
+  become_method: sudo
+  gather_facts: False
+
+  tasks:
+    - name: Copy the private key on the operator node for the root user
+      copy:
+        src: "{{key}}"
+        dest: /root/.ssh/id_rsa
+        mode: 0600
+
+    - name: Install all the ansible/kolla dependencies
+      apt:
+       name: "{{item}}"
+      with_items:
+        - python-dev
+        - libffi-dev
+        - gcc
+        - libssl-dev
+        - python-pip
+
+    - name: Upgrade/install pip and ansible
+      pip:
+        name: "{{item}}"
+        state: forcereinstall
+      with_items:
+        - pip
+        - ansible
+
+    - name: Install kolla from github
+      pip:
+        name: git+https://github.com/openstack/kolla.git@{{kolla_version}}
+        editable: False
+
+    - name: Link the kolla's configuration files in /etc
+      file:
+        src: /usr/local/share/kolla/etc_examples/kolla
+        dest: /etc/kolla
+        state: link
+
+    - name: Copy the kolla's inventory example file in /root
+      copy:
+        src: /usr/local/share/kolla/ansible/inventory/multinode
+        dest: /root/multinode
+        remote_src: True
