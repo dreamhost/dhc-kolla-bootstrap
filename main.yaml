@@ -51,10 +51,6 @@
         - ip_address: "{{internal_vip_address}}"
     with_items: "{{ controllers }}"
 
-#  - name: Assign a floating IP to VIP port
-#    command: "openstack floating ip create --port vip {{public_network}}"
-#    ignore_errors: yes
-
   - name: Boot the operator node
     os_server:
       name: operator
@@ -72,6 +68,7 @@
       name: "{{item}}"
       state: present
       image: "{{image}}"
+      key_name: "{{key_name}}"
       security_groups: "{{secgroups}}"
       flavor: "{{flavor}}"
       nics:
@@ -85,6 +82,7 @@
       name: "{{item}}"
       state: present
       image: "{{image}}"
+      key_name: "{{key_name}}"
       security_groups: "{{secgroups}}"
       flavor: "{{flavor}}"
       nics:
@@ -133,9 +131,6 @@
   gather_facts: False
 
   tasks:
-    - name: Wait for SSH banners
-      local_action: wait_for port=22 host="{{inventory_hostname}}" search_regex=OpenSSH delay=5
-
     - name: install python 2
       raw: test -e /usr/bin/python || (apt -y update && apt install -y python-minimal)
 
