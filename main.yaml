@@ -3,6 +3,36 @@
   hosts: localhost
   tasks:
 
+  - name: Create internal network
+    os_network:
+      name: "{{internal_network}}"
+
+  - name: Create internal network subnet
+    os_subnet:
+      name: internal
+      network_name: "{{internal_network}}"
+      cidr: "{{internal_network_cidr}}"
+      dns_nameservers: 8.8.8.8
+
+  - name: Create external network
+    os_network:
+      name: "{{external_network}}"
+
+  - name: Create external network subnet
+    os_subnet:
+      name: external
+      network_name: "{{external_network}}"
+      cidr: "{{external_network_cidr}}"
+      dns_nameservers: 8.8.8.8
+
+  - name: Create router
+    os_router:
+      name: "kolla_router"
+      network: "public"  # external network
+      interfaces:
+        - internal
+        - external
+
   - name: Create a port with a static VIP
     os_port:
       state: present
