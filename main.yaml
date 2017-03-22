@@ -49,11 +49,11 @@
       name: "{{item}}"
       allowed_address_pairs:
         - ip_address: "{{internal_vip_address}}"
-    with_items: "{{ controllers }}"
+    with_sequence: count="{{controllers}}" format="{{controller_name_format}}"
 
   - name: Boot the operator node
     os_server:
-      name: kolla-operator
+      name: "kolla-operator"
       state: present
       image: "{{image}}"
       security_groups: "{{secgroups}}"
@@ -65,7 +65,7 @@
 
   - name: Boot the controllers node
     os_server:
-      name: "kolla-{{item}}"
+      name: "{{item}}"
       state: present
       image: "{{image}}"
       key_name: "{{key_name}}"
@@ -74,11 +74,11 @@
       nics:
         - port-name: "{{item}}"
       wait: yes
-    with_items: "{{ controllers }}"
+    with_sequence: count="{{controllers}}" format="{{controller_name_format}}"
 
   - name: Boot the compute/network nodes
     os_server:
-      name: "kolla-{{item}}"
+      name: "{{item}}"
       state: present
       image: "{{image}}"
       key_name: "{{key_name}}"
@@ -90,7 +90,7 @@
       wait: yes
       auto_ip: no
     register: kolla_nodes
-    with_items: "{{nodes}}"
+    with_sequence: count="{{nodes}}" format="{{node_name_format}}"
 
   - name: Attach floating ips for the nodes on the internal network
     os_floating_ip:

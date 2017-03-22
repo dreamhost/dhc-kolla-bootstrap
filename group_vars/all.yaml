@@ -1,12 +1,9 @@
 ---
-controllers:
-  - controller01
-  - controller02
-  - controller03
+controllers: 3
+nodes: 2
 
-nodes:
-  - node01
-  - node02
+controller_name_format: "kolla-controller%02d"
+node_name_format: "kolla-node%02d"
 
 secgroups:
   - default
