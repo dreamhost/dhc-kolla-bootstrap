@@ -113,7 +113,6 @@
       groups: all
       ansible_host: "{{item.public_v4}}"
       ansible_user: "{{ansible_user}}"
-      instance_name: "{{item.name}}"
       instance_private_v4: "{{item['addresses'][internal_network][0]['addr']}}"
       ansible_ssh_private_key_file: "{{key}}"
       ansible_ssh_common_args: -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no
@@ -126,7 +125,6 @@
       groups: operator
       ansible_host: "{{kolla_operator.server.public_v4}}"
       ansible_user: "{{ansible_user}}"
-      instance_name: "{{kolla_operator.server.name}}"
       instance_private_v4: "{{kolla_operator['openstack']['networks'][internal_network][0]}}"
       ansible_ssh_private_key_file: "{{key}}"
       ansible_ssh_common_args: -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no
