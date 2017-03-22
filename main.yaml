@@ -199,3 +199,10 @@
         line: "{{hostvars[item]['instance_private_v4']}} {{item}}"
         state: present
       with_items: "{{ groups['all'] }}"
+
+    - name: Set VIP in global.yml
+      lineinfile:
+        dest: /etc/kolla/globals.yml
+        regexp: '^kolla_internal_vip_address:.*$'
+        line: 'kolla_internal_vip_address: "{{internal_vip_address}}"'
+        state: present
