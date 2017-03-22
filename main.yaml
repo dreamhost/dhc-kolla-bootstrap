@@ -196,7 +196,7 @@
     - name: Setup /etc/hosts
       lineinfile:
         dest: /etc/hosts
-        regexp: '.*{{hostvars[item]["instance_name"]}}$'
+        regexp: '.*{{item}}$'
         line: "{{hostvars[item]['instance_private_v4']}} {{hostvars[item]['instance_name']}}"
         state: present
       with_items: "{{ groups['all'] }}"
