@@ -107,9 +107,6 @@
     os_server_facts:
       server: 'kolla-*'
 
-  - debug:
-      var: openstack_servers
-
   - name: Add all nodes to the inventory
     add_host:
       name: "{{item.public_v4}}"
@@ -124,7 +121,7 @@
   - name: Add operator node to the inventory
     add_host:
       name: "{{kolla_operator.server.public_v4}}"
-      groups: operator,all
+      groups: operator
       ansible_user: "{{ansible_user}}"
       instance_name: "{{kolla_operator.server.name}}"
       ansible_ssh_private_key_file: "{{key}}"
