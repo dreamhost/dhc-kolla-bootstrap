@@ -53,7 +53,7 @@
 
   - name: Boot the operator node
     os_server:
-      name: operator
+      name: kolla-operator
       state: present
       image: "{{image}}"
       security_groups: "{{secgroups}}"
@@ -65,7 +65,7 @@
 
   - name: Boot the controllers node
     os_server:
-      name: "{{item}}"
+      name: "kolla-{{item}}"
       state: present
       image: "{{image}}"
       key_name: "{{key_name}}"
@@ -79,7 +79,7 @@
 
   - name: Boot the compute/network nodes
     os_server:
-      name: "{{item}}"
+      name: "kolla-{{item}}"
       state: present
       image: "{{image}}"
       key_name: "{{key_name}}"
@@ -105,19 +105,21 @@
 
   - name: Refresh node facts after floating IP attach
     os_server_facts:
-      server: '*'
+      server: 'kolla-*'
+
+  - debug:
+      var: openstack_servers
 
   - name: Add all nodes to the inventory
     add_host:
-      name: "{{item.server.public_v4}}"
+      name: "{{item.public_v4}}"
       groups: all
       ansible_user: "{{ansible_user}}"
-      instance_name: "{{item.server.name}}"
+      instance_name: "{{item.name}}"
       ansible_ssh_private_key_file: "{{key}}"
       ansible_ssh_common_args: -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no
     with_items:
-      - "{{kolla_nodes.results}}"
-      - "{{kolla_controllers.results}}"
+      - "{{openstack_servers}}"
 
   - name: Add operator node to the inventory
     add_host:
