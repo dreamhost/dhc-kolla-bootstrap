@@ -74,7 +74,6 @@
       nics:
         - port-name: "{{item}}"
       wait: yes
-    register: kolla_controllers
     with_items: "{{ controllers }}"
 
   - name: Boot the compute/network nodes
