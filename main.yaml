@@ -109,10 +109,12 @@
 
   - name: Add all nodes to the inventory
     add_host:
-      name: "{{item.public_v4}}"
+      name: "{{item.name}}"
       groups: all
+      ansible_host: "{{item.public_v4}}"
       ansible_user: "{{ansible_user}}"
       instance_name: "{{item.name}}"
+      instance_private_v4: "{{item['addresses'][internal_network][0]['addr']}}"
       ansible_ssh_private_key_file: "{{key}}"
       ansible_ssh_common_args: -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no
     with_items:
@@ -120,10 +122,12 @@
 
   - name: Add operator node to the inventory
     add_host:
-      name: "{{kolla_operator.server.public_v4}}"
+      name: "{{kolla_operator.server.name}}"
       groups: operator
+      ansible_host: "{{kolla_operator.server.public_v4}}"
       ansible_user: "{{ansible_user}}"
       instance_name: "{{kolla_operator.server.name}}"
+      instance_private_v4: "{{kolla_operator['openstack']['networks'][internal_network][0]}}"
       ansible_ssh_private_key_file: "{{key}}"
       ansible_ssh_common_args: -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no
 
@@ -193,9 +197,8 @@
 
     - name: Setup /etc/hosts
       lineinfile:
-        path: /etc/hosts
-        regexp: '.*{{ item }}$'
-        line: "{{ hostvars[item].ansible_default_ipv4.address }} {{item}}"
+        dest: /etc/hosts
+        regexp: '.*{{item}}$'
+        line: "{{hostvars[item]['instance_private_v4']}} {{item}}"
         state: present
-      when: hostvars[item].ansible_default_ipv4.address is defined
-      with_items: groups['all']
+      with_items: "{{ groups['all'] }}"
