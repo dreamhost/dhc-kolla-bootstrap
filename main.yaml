@@ -113,6 +113,7 @@
       groups: all
       ansible_user: "{{ansible_user}}"
       instance_name: "{{item.name}}"
+      instance_private_v4: "{{item['addresses'][internal_network][0]['addr']}}"
       ansible_ssh_private_key_file: "{{key}}"
       ansible_ssh_common_args: -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no
     with_items:
@@ -124,6 +125,7 @@
       groups: operator
       ansible_user: "{{ansible_user}}"
       instance_name: "{{kolla_operator.server.name}}"
+      instance_private_v4: "{{kolla_operator['openstack']['networks'][internal_network][0]}}"
       ansible_ssh_private_key_file: "{{key}}"
       ansible_ssh_common_args: -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no
 
@@ -193,9 +195,8 @@
 
     - name: Setup /etc/hosts
       lineinfile:
-        path: /etc/hosts
-        regexp: '.*{{ item }}$'
-        line: "{{ hostvars[item].ansible_default_ipv4.address }} {{item}}"
+        dest: /etc/hosts
+        regexp: '.*{{hostvars[item]["instance_name"]}}$'
+        line: "{{hostvars[item]['instance_private_v4']}} {{hostvars[item]['instance_name']}}"
         state: present
-      when: hostvars[item].ansible_default_ipv4.address is defined
-      with_items: groups['all']
+      with_items: "{{ groups['all'] }}"
