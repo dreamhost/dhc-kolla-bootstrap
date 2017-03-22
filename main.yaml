@@ -206,3 +206,10 @@
         regexp: '^kolla_internal_vip_address:.*$'
         line: 'kolla_internal_vip_address: "{{internal_vip_address}}"'
         state: present
+
+    - name: Disable StrictHostKeyChecking
+      lineinfile:
+        dest: /etc/ssh/ssh_config
+        regexp: '.*StrictHostKeyChecking .*'
+        line: 'StrictHostKeyChecking no'
+        state: present
