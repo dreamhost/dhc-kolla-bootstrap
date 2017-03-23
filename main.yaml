@@ -154,14 +154,8 @@
   gather_facts: False
 
   tasks:
-    - name: install python 2
-      raw: test -e /usr/bin/python || (apt -y update && apt install -y python-minimal)
-
     - name: Copy the public key on all the nodes for the root user
-      copy:
-        src: "/home/{{ansible_user}}/.ssh/authorized_keys"
-        dest: /root/.ssh
-        remote_src: True
+      raw: "cp /home/{{ansible_user}}/.ssh/authorized_keys /root/.ssh/"
                 
 - name: Configure the operator node
   hosts: operator
@@ -170,6 +164,9 @@
   gather_facts: False
 
   tasks:
+    - name: install python 2
+      raw: test -e /usr/bin/python || (apt -y update && apt install -y python-minimal)
+
     - name: Copy the private key on the operator node for the root user
       copy:
         src: "{{key}}"
@@ -218,6 +215,13 @@
         line: "{{hostvars[item]['instance_private_v4']}} {{item}}"
         state: present
       with_items: "{{ groups['all'] }}"
+
+    - name: Set kolla_base_distro in global.yml
+      lineinfile:
+        dest: /etc/kolla/globals.yml
+        regexp: '.*kolla_base_distro:.*$'
+        line: 'kolla_base_distro: "ubuntu"'
+        state: present
 
     - name: Set VIP in global.yml
       lineinfile:
