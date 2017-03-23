@@ -60,8 +60,11 @@
       flavor: gp1.supersonic
       key_name: "{{key_name}}"
       network: "{{internal_network}}"
+      meta: groups=operator
       wait: yes
     register: kolla_operator
+    async: 7200
+    poll: 0
 
   - name: Boot the controllers node
     os_server:
@@ -71,10 +74,14 @@
       key_name: "{{key_name}}"
       security_groups: "{{secgroups}}"
       flavor: "{{flavor}}"
+      meta: groups=controllers
       nics:
         - port-name: "{{item}}"
       wait: yes
     with_sequence: count="{{controllers}}" format="{{controller_name_format}}"
+    register: kolla_controllers
+    async: 7200
+    poll: 0
 
   - name: Boot the compute/network nodes
     os_server:
@@ -84,6 +91,7 @@
       key_name: "{{key_name}}"
       security_groups: "{{secgroups}}"
       flavor: "{{flavor}}"
+      meta: groups=compute
       nics:
         - net-name: "{{internal_network}}"
         - net-name: "{{external_network}}"
@@ -91,6 +99,15 @@
       auto_ip: no
     register: kolla_nodes
     with_sequence: count="{{nodes}}" format="{{node_name_format}}"
+#    async: 7200
+#    poll: 0
+
+#  - name: Wait for compute nodes to boot
+#    async_status: jid={{item.ansible_job_id}}
+#    register: os_compute_jobs
+#    until: os_compute_jobs.finished
+#    retries: 300
+#    with_items: "{{kolla_nodes.results}}"
 
   - name: Attach floating ips for the nodes on the internal network
     os_floating_ip:
@@ -102,6 +119,15 @@
       wait: True
     with_items: "{{kolla_nodes.results}}"
 
+  - name: Wait for controller nodes to boot
+    async_status: jid={{item.ansible_job_id}}
+    register: os_jobs
+    until: os_jobs.finished
+    retries: 300
+    with_items:
+      - "{{kolla_controllers.results}}"
+      - "{{kolla_operator}}"
+
   - name: Refresh node facts after floating IP attach
     os_server_facts:
       server: 'kolla-*'
@@ -109,7 +135,9 @@
   - name: Add all nodes to the inventory
     add_host:
       name: "{{item.name}}"
-      groups: all
+      groups:
+        - "{{item.metadata.groups}}"
+        - "all"
       ansible_host: "{{item.public_v4}}"
       ansible_user: "{{ansible_user}}"
       instance_private_v4: "{{item['addresses'][internal_network][0]['addr']}}"
@@ -118,20 +146,11 @@
     with_items:
       - "{{openstack_servers}}"
 
-  - name: Add operator node to the inventory
-    add_host:
-      name: "{{kolla_operator.server.name}}"
-      groups: operator
-      ansible_host: "{{kolla_operator.server.public_v4}}"
-      ansible_user: "{{ansible_user}}"
-      instance_private_v4: "{{kolla_operator['openstack']['networks'][internal_network][0]}}"
-      ansible_ssh_private_key_file: "{{key}}"
-      ansible_ssh_common_args: -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no
-
 - name: Configure nodes
   hosts: all
   become: yes
   become_method: sudo
+  strategy: free
   gather_facts: False
 
   tasks:
