@@ -202,11 +202,11 @@
         dest: /etc/kolla
         state: link
 
-    - name: Copy the kolla's inventory example file in /root
-      copy:
+    - name: Link the kolla's inventory example file in /root
+      file:
         src: /usr/local/share/kolla/ansible/inventory/multinode
         dest: /root/multinode
-        remote_src: True
+        state: link
 
     - name: Setup /etc/hosts
       lineinfile:
