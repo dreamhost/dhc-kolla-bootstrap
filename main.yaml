@@ -41,7 +41,7 @@
       fixed_ips:
         - ip_address: "{{internal_vip_address}}"
 
-  - name: Make VIP ip accessible on all the controllers
+  - name: Make VIP ip accessible on all the controller node
     os_port:
       state: present
       key: "{{key}}"
@@ -83,7 +83,7 @@
     async: 7200
     poll: 0
 
-  - name: Boot the compute/network nodes
+  - name: Boot the compute nodes
     os_server:
       name: "{{item}}"
       state: present
@@ -97,29 +97,36 @@
         - net-name: "{{external_network}}"
       wait: yes
       auto_ip: no
-    register: kolla_nodes
-    with_sequence: count="{{nodes}}" format="{{node_name_format}}"
-#    async: 7200
-#    poll: 0
+    register: kolla_compute_nodes
+    with_sequence: count="{{compute_nodes}}" format="{{compute_node_name_format}}"
+    async: 7200
+    poll: 0
 
-#  - name: Wait for compute nodes to boot
-#    async_status: jid={{item.ansible_job_id}}
-#    register: os_compute_jobs
-#    until: os_compute_jobs.finished
-#    retries: 300
-#    with_items: "{{kolla_nodes.results}}"
+  # Wait for the compute nodes to be ready so that we can attach
+  # the floating ip as soon as we can.
+  - name: Wait for the compute nodes to boot
+    async_status: jid={{item.ansible_job_id}}
+    register: os_compute_jobs
+    until: os_compute_jobs.finished
+    retries: 300
+    with_items: "{{kolla_compute_nodes.results}}"
 
-  - name: Attach floating ips for the nodes on the internal network
+  - name: Refresh compute nodes facts
+    os_server_facts:
+      server: 'kolla-compute*'
+
+  - name: Attach floating ips for the compute nodes on the internal network
     os_floating_ip:
       state: present
       reuse: yes
-      server: "{{item.server.name}}"
-      fixed_address: "{{item['openstack']['networks'][internal_network][0]}}"
+      server: "{{item.name}}"
+      fixed_address: "{{item['addresses'][internal_network][0]['addr']}}"
       network: "{{public_network}}"
       wait: True
-    with_items: "{{kolla_nodes.results}}"
+    with_items: "{{openstack_servers}}"
 
-  - name: Wait for controller nodes to boot
+  # Wait for the rest of the cluster to be up and running.
+  - name: Wait for controller/operator nodes to boot
     async_status: jid={{item.ansible_job_id}}
     register: os_jobs
     until: os_jobs.finished
