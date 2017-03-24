@@ -1,9 +1,9 @@
 ---
 controllers: 3
-nodes: 2
+compute_nodes: 2
 
 controller_name_format: "kolla-controller%02d"
-node_name_format: "kolla-node%02d"
+compute_node_name_format: "kolla-compute%02d"
 
 secgroups:
   - default
