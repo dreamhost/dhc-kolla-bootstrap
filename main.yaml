@@ -1,33 +1,34 @@
 ---
 - name: Build the Kolla cluster
   hosts: localhost
+  vars:
+    os_username: "{{ lookup('env', 'OS_USERNAME') }}"
   tasks:
-
   - name: Create internal network
     os_network:
-      name: "{{internal_network}}"
+      name: "{{internal_network_name}}"
 
   - name: Create internal network subnet
     os_subnet:
       name: internal
-      network_name: "{{internal_network}}"
+      network_name: "{{internal_network_name}}"
       cidr: "{{internal_network_cidr}}"
       dns_nameservers: 8.8.8.8
 
   - name: Create external network
     os_network:
-      name: "{{external_network}}"
+      name: "{{external_network_name}}"
 
   - name: Create external network subnet
     os_subnet:
       name: external
-      network_name: "{{external_network}}"
+      network_name: "{{external_network_name}}"
       cidr: "{{external_network_cidr}}"
       dns_nameservers: 8.8.8.8
 
   - name: Create router
     os_router:
-      name: "kolla_router"
+      name: "{{router_name}}"
       network: "public"  # external network
       interfaces:
         - internal
@@ -36,8 +37,8 @@
   - name: Create a port with a static VIP
     os_port:
       state: present
-      name: vip
-      network: "{{internal_network}}"
+      name: "{{vip_name}}"
+      network: "{{internal_network_name}}"
       fixed_ips:
         - ip_address: "{{internal_vip_address}}"
 
@@ -45,21 +46,21 @@
     os_port:
       state: present
       key: "{{key}}"
-      network: "{{internal_network}}"
+      network: "{{internal_network_name}}"
       name: "{{item}}"
       allowed_address_pairs:
         - ip_address: "{{internal_vip_address}}"
-    with_sequence: count="{{controllers}}" format="{{controller_name_format}}"
+    with_sequence: count="{{controllers}}" format="{{controller_name}}"
 
   - name: Boot the operator node
     os_server:
-      name: "kolla-operator"
+      name: "{{operator_name}}"
       state: present
       image: "{{image}}"
       security_groups: "{{secgroups}}"
       flavor: gp1.supersonic
       key_name: "{{key_name}}"
-      network: "{{internal_network}}"
+      network: "{{internal_network_name}}"
       meta: groups=operator
       wait: yes
     register: kolla_operator
@@ -78,7 +79,7 @@
       nics:
         - port-name: "{{item}}"
       wait: yes
-    with_sequence: count="{{controllers}}" format="{{controller_name_format}}"
+    with_sequence: count="{{controllers}}" format="{{controller_name}}"
     register: kolla_controllers
     async: 7200
     poll: 0
@@ -93,12 +94,12 @@
       flavor: "{{flavor}}"
       meta: groups=compute
       nics:
-        - net-name: "{{internal_network}}"
-        - net-name: "{{external_network}}"
+        - net-name: "{{internal_network_name}}"
+        - net-name: "{{external_network_name}}"
       wait: yes
       auto_ip: no
     register: kolla_compute_nodes
-    with_sequence: count="{{compute_nodes}}" format="{{compute_node_name_format}}"
+    with_sequence: count="{{compute_nodes}}" format="{{compute_node_name}}"
     async: 7200
     poll: 0
 
@@ -113,14 +114,14 @@
 
   - name: Refresh compute nodes facts
     os_server_facts:
-      server: 'kolla-compute*'
+      server: "{{os_username}}-kolla-compute*"
 
   - name: Attach floating ips for the compute nodes on the internal network
     os_floating_ip:
       state: present
       reuse: yes
       server: "{{item.name}}"
-      fixed_address: "{{item['addresses'][internal_network][0]['addr']}}"
+      fixed_address: "{{item['addresses'][internal_network_name][0]['addr']}}"
       network: "{{public_network}}"
       wait: True
     with_items: "{{openstack_servers}}"
@@ -137,7 +138,7 @@
 
   - name: Refresh node facts after floating IP attach
     os_server_facts:
-      server: 'kolla-*'
+      server: "{{os_username}}-kolla-*"
 
   - name: Add all nodes to the inventory
     add_host:
@@ -147,7 +148,7 @@
         - "all"
       ansible_host: "{{item.public_v4}}"
       ansible_user: "{{ansible_user}}"
-      instance_private_v4: "{{item['addresses'][internal_network][0]['addr']}}"
+      instance_private_v4: "{{item['addresses'][internal_network_name][0]['addr']}}"
       ansible_ssh_private_key_file: "{{key}}"
       ansible_ssh_common_args: -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no
     with_items:

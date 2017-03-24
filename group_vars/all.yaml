@@ -2,8 +2,16 @@
 controllers: 3
 compute_nodes: 2
 
-controller_name_format: "kolla-controller%02d"
-compute_node_name_format: "kolla-compute%02d"
+# Set a default name for the openstack user
+os_username: dhc
+
+controller_name: "{{os_username}}-kolla-controller%02d"
+compute_node_name: "{{os_username}}-kolla-compute%02d"
+operator_name: "{{os_username}}-kolla-operator"
+vip_name: "{{os_username}}-kolla-vip"
+internal_network_name: "{{os_username}}-kolla-internal-network"
+external_network_name: "{{os_username}}-kolla-neutron-external-network"
+router_name: "{{os_username}}-kolla-router"
 
 secgroups:
   - default
@@ -17,9 +25,7 @@ ansible_user: ubuntu
 
 # The network to which the build nodes should be connected.
 # It will be created
-internal_network: kolla-internal-network
 internal_network_cidr: 172.17.100.0/24
-external_network: kolla-neutron-external-network
 external_network_cidr: 172.17.200.0/24
 
 # Kolla branch
