@@ -238,6 +238,34 @@
         line: 'kolla_internal_vip_address: "{{internal_vip_address}}"'
         state: present
 
+    - name: Set the vif for the kolla internal network in global.yml
+      lineinfile:
+        dest: /etc/kolla/globals.yml
+        regexp: '.*network_interface:.*$'
+        line: 'network_interface: ens3'
+        state: present
+
+    - name: Set the vif for the kolla external network in global.yml
+      lineinfile:
+        dest: /etc/kolla/globals.yml
+        regexp: '.*neutron_external_interface:.*$'
+        line: 'neutron_external_interface: ens4'
+        state: present
+
+    - name: Enable cinder in global.yml
+      lineinfile:
+        dest: /etc/kolla/globals.yml
+        regexp: '.*enable_cinder:.*$'
+        line: 'enable_cinder: yes'
+        state: present
+
+    - name: Disable heat in global.yml
+      lineinfile:
+        dest: /etc/kolla/globals.yml
+        regexp: '.*enable_heat:.*$'
+        line: 'enable_heat: no'
+        state: present
+
     - name: Disable StrictHostKeyChecking
       lineinfile:
         dest: /etc/ssh/ssh_config
